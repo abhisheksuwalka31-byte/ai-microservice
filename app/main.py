@@ -21,8 +21,13 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure database schema is ready
+    # Ensure database schema is ready and demo users seeded
     Base.metadata.create_all(bind=engine)
+    try:
+        from seed import seed_demo_users
+        seed_demo_users()
+    except Exception as e:
+        print(f"Warning: seed_demo_users failed: {e}")
     yield
 
 
