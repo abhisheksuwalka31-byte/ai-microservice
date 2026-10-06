@@ -1,7 +1,9 @@
+import os
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, status, Response
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Depends, status, Response, Request
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, select
@@ -15,6 +17,7 @@ from app.models.audit_log import AuditLog
 from app.models.inference_log import InferenceLog
 
 START_TIME = time.time()
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 
 @asynccontextmanager
@@ -53,10 +56,14 @@ app.add_middleware(
 )
 
 
-# Root redirect to /docs so opening http://localhost:8000 directly loads the Swagger app
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse(url="/docs")
+# Root application web interface
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def get_web_app():
+    """Serves the interactive AI Studio web application."""
+    index_file = os.path.join(TEMPLATES_DIR, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return HTMLResponse("<h1>AI Microservice Online</h1><p><a href='/docs'>Swagger API</a></p>")
 
 
 # ── Observability Endpoints ───────────────────────────────────────────────────

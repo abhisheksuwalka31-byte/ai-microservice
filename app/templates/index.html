@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Studio & Microservice Gateway</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Logo & Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-brain text-lg"></i>
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            AI Studio <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v1.0</span>
+          </span>
+          <p class="text-xs text-slate-400">Containerized Open Model Microservice</p>
+        </div>
+      </div>
+
+      <!-- Quick 1-Click Role Switcher & Auth Section -->
+      <div class="flex items-center gap-3">
+        <!-- Quick Switch Demo Account Buttons -->
+        <div class="hidden md:flex items-center gap-1.5 p-1 bg-slate-950/60 border border-slate-800 rounded-lg text-xs">
+          <span class="text-slate-500 px-2 font-medium">Quick Login:</span>
+          <button onclick="quickLogin('admin', 'password123')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-rose-300 font-medium transition flex items-center gap-1">
+            <i class="fa-solid fa-crown text-[10px]"></i> Admin
+          </button>
+          <button onclick="quickLogin('alex_dev', 'password123')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-indigo-300 font-medium transition flex items-center gap-1">
+            <i class="fa-solid fa-code text-[10px]"></i> Developer
+          </button>
+          <button onclick="quickLogin('sam_viewer', 'password123')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-amber-300 font-medium transition flex items-center gap-1">
+            <i class="fa-solid fa-eye text-[10px]"></i> Viewer
+          </button>
+        </div>
+
+        <!-- User Status Badge / Login Button -->
+        <div id="authStatusContainer" class="flex items-center gap-2">
+          <!-- Injected via JavaScript -->
+        </div>
+
+        <!-- Swagger Link -->
+        <a href="/docs" target="_blank" class="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-book-open"></i> API Docs
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
+
+    <!-- Left Sidebar: Feature Navigation Tabs -->
+    <aside class="w-full md:w-64 shrink-0 flex flex-col gap-2">
+      <nav class="space-y-1 bg-slate-900/60 p-2 rounded-2xl border border-slate-800">
+        <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
+          <i class="fa-solid fa-comments w-5 text-center"></i> Multi-turn Chat
+        </button>
+        <button onclick="switchTab('generate')" id="tab-generate" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i class="fa-solid fa-feather w-5 text-center"></i> Text Generation
+        </button>
+        <button onclick="switchTab('summarize')" id="tab-summarize" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i class="fa-solid fa-compress w-5 text-center"></i> Summarizer
+        </button>
+        <button onclick="switchTab('vision')" id="tab-vision" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i class="fa-solid fa-image w-5 text-center"></i> Multimodal Vision
+        </button>
+        <div class="pt-2 border-t border-slate-800 my-1"></div>
+        <button onclick="switchTab('admin')" id="tab-admin" class="tab-btn w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <span class="flex items-center gap-3"><i class="fa-solid fa-shield-halved w-5 text-center"></i> Admin Portal</span>
+          <span class="text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded">RBAC</span>
+        </button>
+        <button onclick="switchTab('telemetry')" id="tab-telemetry" class="tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i class="fa-solid fa-chart-line w-5 text-center"></i> Metrics & Probes
+        </button>
+      </nav>
+
+      <!-- Current Session Info Card -->
+      <div class="mt-auto bg-slate-900/60 p-4 rounded-2xl border border-slate-800 text-xs text-slate-400 space-y-2">
+        <div class="font-semibold text-slate-200 flex items-center justify-between">
+          <span>Active Role</span>
+          <span id="roleIndicatorBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">GUEST</span>
+        </div>
+        <p id="roleDescription" class="text-slate-500 leading-relaxed">
+          Log in with a Developer or Admin account to run AI inference.
+        </p>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col relative overflow-hidden shadow-xl">
+
+      <!-- Alert / Toast Banner -->
+      <div id="alertBanner" class="hidden mb-4 p-4 rounded-xl text-sm flex items-start gap-3 border transition-all"></div>
+
+      <!-- ── TAB 1: Multi-turn Chat ─────────────────────────────────────────── -->
+      <div id="view-chat" class="view-panel flex-1 flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-comments text-indigo-400"></i> Multi-turn Chat Assistant
+            </h2>
+            <p class="text-xs text-slate-400">Contextual conversations powered by Gemini API with role-based validation</p>
+          </div>
+          <button onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-rose-400 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">
+            <i class="fa-solid fa-rotate-left mr-1"></i> Clear Chat
+          </button>
+        </div>
+
+        <!-- Chat Conversation Messages Window -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 pr-2 min-h-[380px] max-h-[500px]">
+          <!-- Welcome message -->
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+              <i class="fa-solid fa-robot text-sm"></i>
+            </div>
+            <div class="bg-slate-800/80 p-3.5 rounded-2xl rounded-tl-none border border-slate-700/60 max-w-[85%] text-sm leading-relaxed text-slate-200">
+              Hello! I am your AI Microservice assistant. Ask me anything, or test multi-turn conversations!
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <form onsubmit="handleChatSubmit(event)" class="mt-4 flex gap-2">
+          <input type="text" id="chatInput" placeholder="Type your message here..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white placeholder-slate-500">
+          <button type="submit" id="chatSendBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-medium text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+            <span>Send</span> <i class="fa-solid fa-paper-plane text-xs"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- ── TAB 2: Text Generation ─────────────────────────────────────────── -->
+      <div id="view-generate" class="view-panel hidden flex-1 flex flex-col">
+        <div class="pb-4 border-b border-slate-800 mb-4">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-feather text-indigo-400"></i> Text Generation Playground
+          </h2>
+          <p class="text-xs text-slate-400">Custom prompt execution with system instructions, temperature, and token controls</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+          <!-- Inputs Column -->
+          <div class="space-y-4 flex flex-col">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Prompt</label>
+              <textarea id="genPrompt" rows="5" placeholder="e.g. Write a Python script to calculate Fibonacci sequence with memoization..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 text-white"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">System Instruction (Optional)</label>
+              <input type="text" id="genSystemPrompt" placeholder="e.g. You are a senior software architect. Provide production-ready code." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-white">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Temperature (0.0 - 1.0)</label>
+                <input type="number" id="genTemp" min="0" max="1" step="0.1" value="0.7" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Max Tokens</label>
+                <input type="number" id="genTokens" value="500" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+              </div>
+            </div>
+            <button onclick="handleGenerateText()" id="genSubmitBtn" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Completion
+            </button>
+          </div>
+
+          <!-- Output Column -->
+          <div class="flex flex-col bg-slate-950 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Generated Result</span>
+              <span id="genMetaBadge" class="text-[10px] text-slate-500">Ready</span>
+            </div>
+            <div id="genOutput" class="flex-1 overflow-y-auto text-sm text-slate-200 whitespace-pre-wrap font-mono leading-relaxed p-2">
+              Output will appear here after generation...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 3: Summarizer ──────────────────────────────────────────────── -->
+      <div id="view-summarize" class="view-panel hidden flex-1 flex flex-col">
+        <div class="pb-4 border-b border-slate-800 mb-4">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-compress text-indigo-400"></i> Text Summarization Studio
+          </h2>
+          <p class="text-xs text-slate-400">Condense articles, documentation, or code in concise, detailed, or bullet formats</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+          <div class="space-y-4 flex flex-col">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Source Text to Summarize</label>
+              <textarea id="sumText" rows="9" placeholder="Paste your article or long text here..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 text-white"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Summary Style</label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="cursor-pointer">
+                  <input type="radio" name="sumStyle" value="concise" checked class="peer sr-only">
+                  <div class="p-2.5 rounded-xl border border-slate-800 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 text-center text-xs font-medium text-slate-300 peer-checked:text-indigo-400">
+                    Concise (2-4 sent.)
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="sumStyle" value="bullet" class="peer sr-only">
+                  <div class="p-2.5 rounded-xl border border-slate-800 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 text-center text-xs font-medium text-slate-300 peer-checked:text-indigo-400">
+                    Bullet Points
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="sumStyle" value="detailed" class="peer sr-only">
+                  <div class="p-2.5 rounded-xl border border-slate-800 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 text-center text-xs font-medium text-slate-300 peer-checked:text-indigo-400">
+                    Detailed Summary
+                  </div>
+                </label>
+              </div>
+            </div>
+            <button onclick="handleSummarize()" id="sumSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+              <i class="fa-solid fa-bolt"></i> Summarize Text
+            </button>
+          </div>
+
+          <div class="flex flex-col bg-slate-950 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Summary Output</span>
+              <span id="sumMetaBadge" class="text-[10px] text-slate-500">Ready</span>
+            </div>
+            <div id="sumOutput" class="flex-1 overflow-y-auto text-sm text-slate-200 whitespace-pre-wrap leading-relaxed p-2">
+              Summarized text will appear here...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 4: Multimodal Vision ───────────────────────────────────────── -->
+      <div id="view-vision" class="view-panel hidden flex-1 flex flex-col">
+        <div class="pb-4 border-b border-slate-800 mb-4">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-image text-indigo-400"></i> Multimodal Image Understanding
+          </h2>
+          <p class="text-xs text-slate-400">Upload any image (diagrams, documents, photos) and query Gemini Vision</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+          <div class="space-y-4 flex flex-col">
+            <!-- Upload Box -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Select Image</label>
+              <div class="border-2 border-dashed border-slate-800 hover:border-slate-700 rounded-xl p-4 text-center cursor-pointer bg-slate-950" onclick="document.getElementById('visionFile').click()">
+                <input type="file" id="visionFile" accept="image/*" class="hidden" onchange="previewSelectedImage(event)">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-500 mb-2"></i>
+                <p id="visionFileName" class="text-xs text-slate-400">Click to choose image (JPEG, PNG, WebP)</p>
+              </div>
+            </div>
+
+            <!-- Preview Image -->
+            <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-800 max-h-48 bg-black flex items-center justify-center">
+              <img id="imagePreview" src="" alt="Selected image preview" class="max-h-48 object-contain">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Instruction / Question</label>
+              <input type="text" id="visionPrompt" value="Describe this image in detail and extract any key information." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <button onclick="handleVisionAnalysis()" id="visionSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+              <i class="fa-solid fa-eye"></i> Analyze Image
+            </button>
+          </div>
+
+          <!-- Vision Output -->
+          <div class="flex flex-col bg-slate-950 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Vision Analysis Output</span>
+              <span id="visionMetaBadge" class="text-[10px] text-slate-500">Ready</span>
+            </div>
+            <div id="visionOutput" class="flex-1 overflow-y-auto text-sm text-slate-200 whitespace-pre-wrap leading-relaxed p-2">
+              Image analysis results will appear here...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 5: Admin Portal ────────────────────────────────────────────── -->
+      <div id="view-admin" class="view-panel hidden flex-1 flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-rose-400"></i> Admin Portal & Audit Trail
+            </h2>
+            <p class="text-xs text-slate-400">Role-Based Access Control inspection and persistent security audit logging</p>
+          </div>
+          <button onclick="loadAdminData()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 transition">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Data
+          </button>
+        </div>
+
+        <div class="space-y-6 flex-1 overflow-y-auto pr-1">
+          <!-- Users Table (Eager loaded) -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center justify-between">
+              <span><i class="fa-solid fa-users text-indigo-400 mr-2"></i> Registered Platform Users (Zero N+1 Eager Loading)</span>
+              <span class="text-xs font-normal text-slate-500">Requires ADMIN Role</span>
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase">
+                  <tr>
+                    <th class="py-2.5 px-3">ID</th>
+                    <th class="py-2.5 px-3">Username</th>
+                    <th class="py-2.5 px-3">Email</th>
+                    <th class="py-2.5 px-3">Role</th>
+                    <th class="py-2.5 px-3">Audit Logs</th>
+                    <th class="py-2.5 px-3">Inferences</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersTableBody" class="divide-y divide-slate-800/60">
+                  <tr><td colspan="6" class="py-4 text-center text-slate-500">Loading user data...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Audit Log Trail Table -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center justify-between">
+              <span><i class="fa-solid fa-list-check text-rose-400 mr-2"></i> Security Audit Trail</span>
+              <span class="text-xs font-normal text-slate-500">Recorded for Compliance</span>
+            </h3>
+            <div class="overflow-x-auto max-h-60 overflow-y-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase sticky top-0">
+                  <tr>
+                    <th class="py-2.5 px-3">Time</th>
+                    <th class="py-2.5 px-3">User ID</th>
+                    <th class="py-2.5 px-3">Action</th>
+                    <th class="py-2.5 px-3">Resource</th>
+                    <th class="py-2.5 px-3">IP</th>
+                    <th class="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="adminAuditTableBody" class="divide-y divide-slate-800/60">
+                  <tr><td colspan="6" class="py-4 text-center text-slate-500">Loading audit log data...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 6: Telemetry & Probes ──────────────────────────────────────── -->
+      <div id="view-telemetry" class="view-panel hidden flex-1 flex flex-col">
+        <div class="pb-4 border-b border-slate-800 mb-4">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-indigo-400"></i> Observability Probes & Telemetry
+          </h2>
+          <p class="text-xs text-slate-400">Real-time health, Kubernetes probes, and microservice performance telemetry</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-500 font-semibold uppercase">Liveness Probe</span>
+            <div class="mt-2 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="metricLiveness" class="text-lg font-bold text-emerald-400">HEALTHY</span>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">HTTP 200 via /health</span>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-500 font-semibold uppercase">Readiness Probe</span>
+            <div class="mt-2 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span id="metricReadiness" class="text-lg font-bold text-emerald-400">READY</span>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">DB check via /ready</span>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-500 font-semibold uppercase">Uptime</span>
+            <div class="mt-2 text-lg font-bold text-white" id="metricUptime">0s</div>
+            <span class="text-[10px] text-slate-500 mt-1 block">Process duration</span>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-500 font-semibold uppercase">Avg Latency</span>
+            <div class="mt-2 text-lg font-bold text-indigo-400" id="metricLatency">0.0 ms</div>
+            <span class="text-[10px] text-slate-500 mt-1 block">Inference benchmark</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex-1 flex flex-col">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+            <span class="text-xs font-bold text-slate-300">Raw /metrics JSON Payload</span>
+            <button onclick="fetchTelemetry()" class="text-xs text-indigo-400 hover:text-indigo-300">
+              <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh
+            </button>
+          </div>
+          <pre id="rawMetricsJson" class="text-xs text-slate-400 font-mono overflow-auto p-2 bg-slate-900 rounded-lg flex-1">Loading metrics...</pre>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Registration / Custom Login Modal -->
+  <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="mb-4">
+        <h3 id="modalTitle" class="text-lg font-bold text-white">Login to Account</h3>
+        <p class="text-xs text-slate-400">Enter your credentials or choose a role.</p>
+      </div>
+
+      <!-- Tabs inside modal: Login / Register -->
+      <div class="flex border-b border-slate-800 mb-4">
+        <button onclick="toggleModalMode('login')" id="modalTabLogin" class="pb-2 px-3 text-xs font-bold border-b-2 border-indigo-500 text-indigo-400">Login</button>
+        <button onclick="toggleModalMode('register')" id="modalTabRegister" class="pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white">Register</button>
+      </div>
+
+      <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+          <input type="text" id="modalUsername" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+
+        <div id="modalEmailGroup" class="hidden">
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
+          <input type="email" id="modalEmail" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+          <input type="password" id="modalPassword" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+        </div>
+
+        <div id="modalRoleGroup" class="hidden">
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Role</label>
+          <select id="modalRole" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="developer">Developer (Can run AI)</option>
+            <option value="admin">Admin (Full Access & Audit)</option>
+            <option value="viewer">Viewer (Read-only)</option>
+          </select>
+        </div>
+
+        <button type="submit" id="modalSubmitBtn" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-medium text-sm transition">
+          Login
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Application Logic -->
+  <script>
+    // State management
+    let currentUser = null;
+    let authToken = localStorage.getItem('ai_access_token') || null;
+    let chatHistory = [];
+    let modalMode = 'login';
+
+    // Initialize application on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initSession();
+      fetchTelemetry();
+    });
+
+    // Check active session
+    async function initSession() {
+      if (authToken) {
+        try {
+          const res = await fetch('/api/v1/auth/me', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+          });
+          if (res.ok) {
+            currentUser = await res.json();
+            updateUIForUser();
+            return;
+          }
+        } catch (e) {
+          console.error("Session restore failed", e);
+        }
+      }
+      // Default to guest / prompt login
+      currentUser = null;
+      authToken = null;
+      localStorage.removeItem('ai_access_token');
+      updateUIForUser();
+    }
+
+    function updateUIForUser() {
+      const container = document.getElementById('authStatusContainer');
+      const roleBadge = document.getElementById('roleIndicatorBadge');
+      const roleDesc = document.getElementById('roleDescription');
+
+      if (currentUser) {
+        let badgeColor = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+        if (currentUser.role === 'admin') badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+        if (currentUser.role === 'viewer') badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+        roleBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${badgeColor}`;
+        roleBadge.innerText = currentUser.role;
+
+        if (currentUser.role === 'admin') {
+          roleDesc.innerText = 'Full system privileges. Access to user directories, audit logs, and inference.';
+        } else if (currentUser.role === 'developer') {
+          roleDesc.innerText = 'Authorized to execute text completions, chat, summarization, and vision analysis.';
+        } else {
+          roleDesc.innerText = 'Read-only access. Inference endpoints will return 403 Forbidden.';
+        }
+
+        container.innerHTML = `
+          <div class="flex items-center gap-2 pl-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-xs font-semibold text-slate-200">${currentUser.username}</span>
+            <button onclick="logout()" class="text-xs text-slate-500 hover:text-rose-400 p-1" title="Logout">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        roleBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-400';
+        roleBadge.innerText = 'GUEST';
+        roleDesc.innerText = 'Not logged in. Click a 1-click login button above to start.';
+
+        container.innerHTML = `
+          <button onclick="openAuthModal('login')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3 py-1.5 rounded-lg transition">
+            Sign In
+          </button>
+        `;
+      }
+    }
+
+    // 1-Click Quick Login
+    async function quickLogin(username, password) {
+      showToast(`Logging in as ${username}...`, 'info');
+      try {
+        const res = await fetch('/api/v1/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          authToken = data.access_token;
+          localStorage.setItem('ai_access_token', authToken);
+          await initSession();
+          showToast(`Signed in successfully as ${username} (${currentUser.role.toUpperCase()})`, 'success');
+        } else {
+          showToast(data.detail || 'Login failed', 'error');
+        }
+      } catch (err) {
+        showToast('Connection failed: ' + err.message, 'error');
+      }
+    }
+
+    function logout() {
+      authToken = null;
+      currentUser = null;
+      localStorage.removeItem('ai_access_token');
+      updateUIForUser();
+      showToast('Logged out.', 'info');
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.className = 'tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/60';
+      });
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      const activePanel = document.getElementById(`view-${tabId}`);
+
+      if (activeBtn) activeBtn.className = 'tab-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-indigo-400 bg-indigo-500/10 border border-indigo-500/20';
+      if (activePanel) activePanel.classList.remove('hidden');
+
+      if (tabId === 'admin') loadAdminData();
+      if (tabId === 'telemetry') fetchTelemetry();
+    }
+
+    // Toast helper
+    function showToast(message, type = 'info') {
+      const banner = document.getElementById('alertBanner');
+      banner.classList.remove('hidden', 'bg-rose-500/10', 'border-rose-500/20', 'text-rose-300', 'bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-300', 'bg-indigo-500/10', 'border-indigo-500/20', 'text-indigo-300');
+
+      let icon = 'fa-info-circle';
+      if (type === 'error') {
+        banner.classList.add('bg-rose-500/10', 'border-rose-500/20', 'text-rose-300');
+        icon = 'fa-triangle-exclamation';
+      } else if (type === 'success') {
+        banner.classList.add('bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-300');
+        icon = 'fa-circle-check';
+      } else {
+        banner.classList.add('bg-indigo-500/10', 'border-indigo-500/20', 'text-indigo-300');
+      }
+
+      banner.innerHTML = `<i class="fa-solid ${icon} mt-0.5"></i> <div class="flex-1">${message}</div>`;
+      setTimeout(() => { banner.classList.add('hidden'); }, 6000);
+    }
+
+    // ── Multi-turn Chat ──────────────────────────────────────────────────────────
+    async function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!authToken) {
+        showToast('Please log in with a Developer or Admin account first.', 'error');
+        return;
+      }
+
+      // Add user message to UI & history
+      appendChatMessage('user', text);
+      chatHistory.push({ role: 'user', content: text });
+      input.value = '';
+
+      const sendBtn = document.getElementById('chatSendBtn');
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+      try {
+        const res = await fetch('/api/v1/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ messages: chatHistory })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          appendChatMessage('model', data.result);
+          chatHistory.push({ role: 'model', content: data.result });
+        } else {
+          appendChatMessage('model', `⚠️ Error (${res.status}): ${data.detail || 'Inference error'}`);
+          showToast(data.detail || 'Inference error', 'error');
+        }
+      } catch (err) {
+        appendChatMessage('model', `⚠️ Connection error: ${err.message}`);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `<span>Send</span> <i class="fa-solid fa-paper-plane text-xs"></i>`;
+      }
+    }
+
+    function appendChatMessage(role, content) {
+      const win = document.getElementById('chatMessages');
+      const isUser = role === 'user';
+      const el = document.createElement('div');
+      el.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
+
+      const avatar = isUser
+        ? `<div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">${currentUser ? currentUser.username[0].toUpperCase() : 'U'}</div>`
+        : `<div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20"><i class="fa-solid fa-robot text-sm"></i></div>`;
+
+      const bubbleStyle = isUser
+        ? 'bg-indigo-600 text-white rounded-tr-none'
+        : 'bg-slate-800/80 text-slate-200 rounded-tl-none border border-slate-700/60';
+
+      el.innerHTML = `
+        ${avatar}
+        <div class="${bubbleStyle} p-3.5 rounded-2xl max-w-[85%] text-sm leading-relaxed whitespace-pre-wrap">
+          ${content}
+        </div>
+      `;
+      win.appendChild(el);
+      win.scrollTop = win.scrollHeight;
+    }
+
+    function clearChatHistory() {
+      chatHistory = [];
+      const win = document.getElementById('chatMessages');
+      win.innerHTML = `
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+            <i class="fa-solid fa-robot text-sm"></i>
+          </div>
+          <div class="bg-slate-800/80 p-3.5 rounded-2xl rounded-tl-none border border-slate-700/60 max-w-[85%] text-sm leading-relaxed text-slate-200">
+            Chat cleared! How can I assist you now?
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Text Generation ──────────────────────────────────────────────────────────
+    async function handleGenerateText() {
+      const prompt = document.getElementById('genPrompt').value.trim();
+      if (!prompt) return showToast('Please enter a prompt.', 'error');
+      if (!authToken) return showToast('Please log in first.', 'error');
+
+      const systemPrompt = document.getElementById('genSystemPrompt').value.trim() || null;
+      const temperature = parseFloat(document.getElementById('genTemp').value) || 0.7;
+      const max_tokens = parseInt(document.getElementById('genTokens').value) || 500;
+
+      const btn = document.getElementById('genSubmitBtn');
+      const out = document.getElementById('genOutput');
+      const meta = document.getElementById('genMetaBadge');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
+      out.innerText = "Processing with Gemini API...";
+
+      try {
+        const res = await fetch('/api/v1/ai/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ prompt, system_prompt: systemPrompt, temperature, max_tokens })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          out.innerText = data.result;
+          meta.innerText = `${data.model} | Completed`;
+          meta.className = 'text-[10px] text-emerald-400 font-semibold';
+        } else {
+          out.innerText = `Error (${res.status}): ${data.detail || 'Inference failed'}`;
+          meta.innerText = `HTTP ${res.status}`;
+          meta.className = 'text-[10px] text-rose-400 font-semibold';
+          showToast(data.detail, 'error');
+        }
+      } catch (err) {
+        out.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Completion`;
+      }
+    }
+
+    // ── Summarization ────────────────────────────────────────────────────────────
+    async function handleSummarize() {
+      const text = document.getElementById('sumText').value.trim();
+      if (!text || text.length < 10) return showToast('Please provide text to summarize (at least 10 chars).', 'error');
+      if (!authToken) return showToast('Please log in first.', 'error');
+
+      const style = document.querySelector('input[name="sumStyle"]:checked')?.value || 'concise';
+      const btn = document.getElementById('sumSubmitBtn');
+      const out = document.getElementById('sumOutput');
+      const meta = document.getElementById('sumMetaBadge');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Summarizing...`;
+      out.innerText = "Analyzing text...";
+
+      try {
+        const res = await fetch('/api/v1/ai/summarize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ text, style })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          out.innerText = data.result;
+          meta.innerText = `${data.model} (${style})`;
+          meta.className = 'text-[10px] text-emerald-400 font-semibold';
+        } else {
+          out.innerText = `Error (${res.status}): ${data.detail || 'Summarization failed'}`;
+          showToast(data.detail, 'error');
+        }
+      } catch (err) {
+        out.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Summarize Text`;
+      }
+    }
+
+    // ── Multimodal Vision ────────────────────────────────────────────────────────
+    function previewSelectedImage(e) {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById('visionFileName').innerText = file.name;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          document.getElementById('imagePreview').src = event.target.result;
+          document.getElementById('imagePreviewContainer').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function handleVisionAnalysis() {
+      const fileInput = document.getElementById('visionFile');
+      if (!fileInput.files.length) return showToast('Please select an image file first.', 'error');
+      if (!authToken) return showToast('Please log in first.', 'error');
+
+      const prompt = document.getElementById('visionPrompt').value.trim() || 'Describe this image in detail.';
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      formData.append('prompt', prompt);
+
+      const btn = document.getElementById('visionSubmitBtn');
+      const out = document.getElementById('visionOutput');
+      const meta = document.getElementById('visionMetaBadge');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Analyzing image...`;
+      out.innerText = "Sending image to Gemini Vision model...";
+
+      try {
+        const res = await fetch('/api/v1/ai/analyze-image', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          out.innerText = data.result;
+          meta.innerText = `${data.model} | Vision Complete`;
+          meta.className = 'text-[10px] text-emerald-400 font-semibold';
+        } else {
+          out.innerText = `Error (${res.status}): ${data.detail || 'Vision analysis failed'}`;
+          showToast(data.detail, 'error');
+        }
+      } catch (err) {
+        out.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-eye"></i> Analyze Image`;
+      }
+    }
+
+    // ── Admin Portal Data ────────────────────────────────────────────────────────
+    async function loadAdminData() {
+      const usersBody = document.getElementById('adminUsersTableBody');
+      const auditBody = document.getElementById('adminAuditTableBody');
+
+      if (!authToken || !currentUser || currentUser.role !== 'admin') {
+        usersBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-rose-400 font-medium">⚠️ RBAC Guard: You must be logged in as an ADMIN to access user management.</td></tr>`;
+        auditBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-rose-400 font-medium">⚠️ RBAC Guard: Audit trail restricted to ADMIN role.</td></tr>`;
+        return;
+      }
+
+      // Fetch users
+      try {
+        const res = await fetch('/api/v1/auth/users', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          const users = await res.json();
+          usersBody.innerHTML = users.map(u => `
+            <tr class="hover:bg-slate-900/60">
+              <td class="py-2.5 px-3 font-mono text-slate-500">${u.id}</td>
+              <td class="py-2.5 px-3 font-semibold text-white">${u.username}</td>
+              <td class="py-2.5 px-3 text-slate-400">${u.email}</td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-rose-500/10 text-rose-400' : (u.role === 'developer' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-400')}">
+                  ${u.role}
+                </span>
+              </td>
+              <td class="py-2.5 px-3 font-mono text-slate-400">${u.audit_logs ? u.audit_logs.length : 0} logs</td>
+              <td class="py-2.5 px-3 font-mono text-slate-400">${u.inference_logs ? u.inference_logs.length : 0} runs</td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        usersBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-rose-400">Failed to load users</td></tr>`;
+      }
+
+      // Fetch audit logs
+      try {
+        const res = await fetch('/api/v1/auth/audit-logs', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          const logs = await res.json();
+          auditBody.innerHTML = logs.map(l => `
+            <tr class="hover:bg-slate-900/60">
+              <td class="py-2 px-3 text-slate-500 font-mono text-[10px]">${new Date(l.created_at).toLocaleTimeString()}</td>
+              <td class="py-2 px-3 font-mono text-slate-400">User #${l.user_id}</td>
+              <td class="py-2 px-3 font-semibold text-indigo-300">${l.action}</td>
+              <td class="py-2 px-3 font-mono text-slate-400">${l.resource}</td>
+              <td class="py-2 px-3 text-slate-500">${l.ip_address || '127.0.0.1'}</td>
+              <td class="py-2 px-3"><span class="text-[10px] font-bold ${l.status_code < 400 ? 'text-emerald-400' : 'text-rose-400'}">${l.status_code}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        auditBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-rose-400">Failed to load audit logs</td></tr>`;
+      }
+    }
+
+    // ── Telemetry & Probes ───────────────────────────────────────────────────────
+    async function fetchTelemetry() {
+      try {
+        const [healthRes, readyRes, metricsRes] = await Promise.all([
+          fetch('/health'),
+          fetch('/ready'),
+          fetch('/metrics')
+        ]);
+
+        if (healthRes.ok) {
+          const h = await healthRes.json();
+          document.getElementById('metricUptime').innerText = `${h.uptime_seconds}s`;
+        }
+
+        if (readyRes.ok) {
+          const r = await readyRes.json();
+          document.getElementById('metricReadiness').innerText = r.status.toUpperCase();
+        }
+
+        if (metricsRes.ok) {
+          const m = await metricsRes.json();
+          document.getElementById('metricLatency').innerText = `${m.average_inference_latency_ms} ms`;
+          document.getElementById('rawMetricsJson').innerText = JSON.stringify(m, null, 2);
+        }
+      } catch (err) {
+        console.error("Telemetry fetch error", err);
+      }
+    }
+
+    // ── Auth Modal Logic ─────────────────────────────────────────────────────────
+    function openAuthModal(mode = 'login') {
+      modalMode = mode;
+      toggleModalMode(mode);
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+
+    function toggleModalMode(mode) {
+      modalMode = mode;
+      const tabLogin = document.getElementById('modalTabLogin');
+      const tabReg = document.getElementById('modalTabRegister');
+      const emailGroup = document.getElementById('modalEmailGroup');
+      const roleGroup = document.getElementById('modalRoleGroup');
+      const btn = document.getElementById('modalSubmitBtn');
+      const title = document.getElementById('modalTitle');
+
+      if (mode === 'login') {
+        title.innerText = 'Login to Account';
+        tabLogin.className = 'pb-2 px-3 text-xs font-bold border-b-2 border-indigo-500 text-indigo-400';
+        tabReg.className = 'pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white';
+        emailGroup.classList.add('hidden');
+        roleGroup.classList.add('hidden');
+        btn.innerText = 'Login';
+      } else {
+        title.innerText = 'Register New Account';
+        tabLogin.className = 'pb-2 px-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white';
+        tabReg.className = 'pb-2 px-3 text-xs font-bold border-b-2 border-indigo-500 text-indigo-400';
+        emailGroup.classList.remove('hidden');
+        roleGroup.classList.remove('hidden');
+        btn.innerText = 'Create Account';
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('modalUsername').value.trim();
+      const password = document.getElementById('modalPassword').value.trim();
+
+      if (modalMode === 'login') {
+        await quickLogin(username, password);
+        closeAuthModal();
+      } else {
+        const email = document.getElementById('modalEmail').value.trim();
+        const role = document.getElementById('modalRole').value;
+        try {
+          const res = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password, role })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            authToken = data.access_token;
+            localStorage.setItem('ai_access_token', authToken);
+            await initSession();
+            closeAuthModal();
+            showToast(`Account created as ${role.toUpperCase()}!`, 'success');
+          } else {
+            showToast(data.detail || 'Registration failed', 'error');
+          }
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    }
+  </script>
+</body>
+</html>
