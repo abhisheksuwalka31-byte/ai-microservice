@@ -3,7 +3,6 @@ import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, status, Response, Request
 from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, select
@@ -56,8 +55,8 @@ app.add_middleware(
 )
 
 
-# Root application web interface
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+# Root application web interface (supports both GET and HEAD)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 def get_web_app():
     """Serves the interactive AI Studio web application."""
     index_file = os.path.join(TEMPLATES_DIR, "index.html")
