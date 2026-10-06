@@ -1,32 +1,39 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.core.database import Base, engine
 
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def setup_test_db():
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def register_user(username="testuser", email="test@example.com", password="secret123"):
+def register_user(username="testuser", email="test@example.com", password="secret123", role="developer"):
     return client.post("/api/v1/auth/register", json={
-        "username": username, "email": email, "password": password
+        "username": username, "email": email, "password": password, "role": role
     })
 
 
-def get_token(username="testuser", password="secret123"):
-    response = register_user(username, email=f"{username}@example.com", password=password)
-    if response.status_code != 201:
-        # Already registered, log in via form
-        resp = client.post("/api/v1/auth/token", data={"username": username, "password": password})
-        return resp.json()["access_token"]
-    return response.json()["access_token"]
+def get_token(username="testuser", password="secret123", role="developer"):
+    response = register_user(username, email=f"{username}@example.com", password=password, role=role)
+    if response.status_code == 201:
+        return response.json()["access_token"]
+    # If already registered, log in
+    resp = client.post("/api/v1/auth/token", data={"username": username, "password": password})
+    return resp.json()["access_token"]
 
 
 def auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-# ── Auth Tests ────────────────────────────────────────────────────────────────
+# ── Health & Auth Tests ───────────────────────────────────────────────────────
 
 def test_health():
     r = client.get("/health")
@@ -40,12 +47,14 @@ def test_register_success():
     r = client.post("/api/v1/auth/register", json={
         "username": "newuser99",
         "email": "newuser99@example.com",
-        "password": "password123"
+        "password": "password123",
+        "role": "developer"
     })
     assert r.status_code == 201
     data = r.json()
     assert "access_token" in data
     assert data["user"]["username"] == "newuser99"
+    assert data["user"]["role"] == "developer"
 
 
 def test_register_duplicate_username():
@@ -86,6 +95,47 @@ def test_get_me_unauthenticated():
     assert r.status_code == 401
 
 
+# ── RBAC Tests ────────────────────────────────────────────────────────────────
+
+def test_admin_can_list_users_with_eager_loading():
+    admin_token = get_token("superadmin", "admin123", role="admin")
+    r = client.get("/api/v1/auth/users", headers=auth_headers(admin_token))
+    assert r.status_code == 200
+    users = r.json()
+    assert isinstance(users, list)
+    # Check that relationships were loaded without N+1 queries
+    for u in users:
+        assert "audit_logs" in u
+        assert "inference_logs" in u
+
+
+def test_non_admin_cannot_list_users():
+    dev_token = get_token("regulardev", "dev123", role="developer")
+    r = client.get("/api/v1/auth/users", headers=auth_headers(dev_token))
+    assert r.status_code == 403
+    assert "Operation not permitted" in r.json()["detail"]
+
+
+def test_admin_can_view_audit_trail():
+    admin_token = get_token("auditadmin", "admin123", role="admin")
+    r = client.get("/api/v1/auth/audit-logs", headers=auth_headers(admin_token))
+    assert r.status_code == 200
+    logs = r.json()
+    assert isinstance(logs, list)
+    assert len(logs) > 0  # Should contain registration audit events
+
+
+def test_viewer_role_cannot_call_inference():
+    viewer_token = get_token("viewer1", "viewer123", role="viewer")
+    r = client.post(
+        "/api/v1/ai/generate",
+        json={"prompt": "Hello"},
+        headers=auth_headers(viewer_token)
+    )
+    assert r.status_code == 403
+    assert "Operation not permitted" in r.json()["detail"]
+
+
 # ── AI Endpoints: Auth Guard Tests (no real API key needed) ───────────────────
 
 def test_generate_text_requires_auth():
@@ -105,37 +155,34 @@ def test_summarize_requires_auth():
 
 def test_analyze_image_requires_auth():
     r = client.post("/api/v1/ai/analyze-image")
-    assert r.status_code in (401, 422)  # 401 or 422 if missing file
+    assert r.status_code in (401, 422)
 
 
-def test_generate_text_no_key_returns_503():
-    """When GEMINI_API_KEY is unconfigured, endpoint returns 503 with a helpful message."""
-    token = get_token("keytest_user", "keytest123")
+def test_generate_text_no_key_returns_503_for_dev_role():
+    """Developer role passes RBAC, then hits 503 if GEMINI_API_KEY is unset."""
+    token = get_token("keytest_user", "keytest123", role="developer")
     r = client.post(
         "/api/v1/ai/generate",
         json={"prompt": "Hello world"},
         headers=auth_headers(token)
     )
-    # Either 503 (no key configured) or 200 (key configured in env)
     assert r.status_code in (200, 503)
     if r.status_code == 503:
         assert "GEMINI_API_KEY" in r.json()["detail"]
 
 
 def test_chat_last_message_must_be_user():
-    """Chat endpoint validates that conversation ends with user message."""
-    token = get_token("chatvaliduser", "chatpass99")
+    token = get_token("chatvaliduser", "chatpass99", role="developer")
     r = client.post(
         "/api/v1/ai/chat",
         json={"messages": [{"role": "user", "content": "Hi"}, {"role": "model", "content": "Hello!"}]},
         headers=auth_headers(token)
     )
-    # Expect 422 (validation error) because last message is from model
     assert r.status_code in (422, 503)
 
 
 def test_summarize_invalid_style():
-    token = get_token("styleuser", "stylepass99")
+    token = get_token("styleuser", "stylepass99", role="developer")
     r = client.post(
         "/api/v1/ai/summarize",
         json={"text": "Some text here.", "style": "invalid_style"},
