@@ -6,13 +6,17 @@ class Settings(BaseSettings):
     APP_NAME: str = "AI Microservice"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = "development"
+
+    # Database
+    DATABASE_URL: str = "sqlite:///./app.db"
 
     # JWT
     SECRET_KEY: str = "change_this_in_production_to_a_strong_random_secret_key"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # Gemini
+    # Gemini API
     GEMINI_API_KEY: str = ""
     GEMINI_TEXT_MODEL: str = "gemini-2.0-flash"
     GEMINI_VISION_MODEL: str = "gemini-2.0-flash"

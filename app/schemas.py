@@ -1,26 +1,65 @@
-from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from app.models.user import UserRole
 
 
-# ── Auth Schemas ──────────────────────────────────────────────────────────────
+# ── Auth & User Schemas ───────────────────────────────────────────────────────
 
 class UserRegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=30, pattern=r"^[a-zA-Z0-9_-]+$")
     email: EmailStr
     password: str = Field(..., min_length=6)
+    role: Optional[UserRole] = Field(default=UserRole.DEVELOPER, description="User role: admin, developer, or viewer")
 
 
 class UserResponse(BaseModel):
     id: int
     username: str
     email: str
-    created_at: str
+    role: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+# ── Audit & Observability Schemas ─────────────────────────────────────────────
+
+class AuditLogResponse(BaseModel):
+    id: int
+    user_id: int
+    action: str
+    resource: str
+    ip_address: Optional[str]
+    status_code: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InferenceLogResponse(BaseModel):
+    id: int
+    user_id: int
+    endpoint: str
+    model_name: str
+    prompt_tokens: Optional[int]
+    output_tokens: Optional[int]
+    latency_ms: float
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserDetailResponse(UserResponse):
+    audit_logs: List[AuditLogResponse] = []
+    inference_logs: List[InferenceLogResponse] = []
 
 
 # ── AI Inference Schemas ──────────────────────────────────────────────────────
