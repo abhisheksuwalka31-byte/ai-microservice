@@ -8,8 +8,11 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_test_db():
+    """Drop and recreate all tables for a clean, isolated database per test."""
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
+    Base.metadata.drop_all(bind=engine)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -24,7 +27,6 @@ def get_token(username="testuser", password="secret123", role="developer"):
     response = register_user(username, email=f"{username}@example.com", password=password, role=role)
     if response.status_code == 201:
         return response.json()["access_token"]
-    # If already registered, log in
     resp = client.post("/api/v1/auth/token", data={"username": username, "password": password})
     return resp.json()["access_token"]
 
@@ -33,15 +35,44 @@ def auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-# ── Health & Auth Tests ───────────────────────────────────────────────────────
+# ── Health & Observability Tests ──────────────────────────────────────────────
 
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "healthy"
-    assert "model" in data
+    assert "uptime_seconds" in data
+    assert "version" in data
 
+
+def test_readiness_probe():
+    r = client.get("/ready")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "ready"
+    assert data["checks"]["database"] == "connected"
+
+
+def test_metrics_endpoint():
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    data = r.json()
+    assert "uptime_seconds" in data
+    assert "total_registered_users" in data
+    assert "total_audit_events" in data
+    assert "average_inference_latency_ms" in data
+
+
+def test_request_correlation_id_header():
+    r = client.get("/health")
+    assert "x-request-id" in r.headers
+    custom_id = "test-req-uuid-12345"
+    r2 = client.get("/health", headers={"X-Request-ID": custom_id})
+    assert r2.headers["x-request-id"] == custom_id
+
+
+# ── Auth Tests ────────────────────────────────────────────────────────────────
 
 def test_register_success():
     r = client.post("/api/v1/auth/register", json={
@@ -103,7 +134,6 @@ def test_admin_can_list_users_with_eager_loading():
     assert r.status_code == 200
     users = r.json()
     assert isinstance(users, list)
-    # Check that relationships were loaded without N+1 queries
     for u in users:
         assert "audit_logs" in u
         assert "inference_logs" in u
@@ -122,7 +152,7 @@ def test_admin_can_view_audit_trail():
     assert r.status_code == 200
     logs = r.json()
     assert isinstance(logs, list)
-    assert len(logs) > 0  # Should contain registration audit events
+    assert len(logs) > 0
 
 
 def test_viewer_role_cannot_call_inference():
@@ -136,7 +166,7 @@ def test_viewer_role_cannot_call_inference():
     assert "Operation not permitted" in r.json()["detail"]
 
 
-# ── AI Endpoints: Auth Guard Tests (no real API key needed) ───────────────────
+# ── AI Endpoints: Auth Guard Tests ────────────────────────────────────────────
 
 def test_generate_text_requires_auth():
     r = client.post("/api/v1/ai/generate", json={"prompt": "Hello"})
@@ -159,7 +189,6 @@ def test_analyze_image_requires_auth():
 
 
 def test_generate_text_no_key_returns_503_for_dev_role():
-    """Developer role passes RBAC, then hits 503 if GEMINI_API_KEY is unset."""
     token = get_token("keytest_user", "keytest123", role="developer")
     r = client.post(
         "/api/v1/ai/generate",
