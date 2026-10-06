@@ -20,12 +20,8 @@ ALLOWED_IMAGE_TYPES = {
 
 
 def _check_gemini_key():
-    from app.core.config import settings
-    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY == "your_gemini_api_key_here":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="GEMINI_API_KEY is not configured. Set it in your .env file. Get one free at https://aistudio.google.com/apikey"
-        )
+    """No-op: live mode is used if key is set; otherwise smart local engine handles requests."""
+    pass
 
 
 def _record_inference(
