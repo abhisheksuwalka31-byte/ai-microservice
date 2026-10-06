@@ -1,6 +1,7 @@
 import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, status, Response
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, select
@@ -50,6 +51,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Root redirect to /docs so opening http://localhost:8000 directly loads the Swagger app
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
 # ── Observability Endpoints ───────────────────────────────────────────────────
